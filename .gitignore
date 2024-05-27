@@ -18,3 +18,4 @@ include/semaphore.h
 # ignore files
 .DS_Store
 /.vs
+/MNN/.vs

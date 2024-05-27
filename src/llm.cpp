@@ -1,4 +1,4 @@
-//
+﻿//
 //  llm.cpp
 //
 //  Created by MNN on 2023/08/25.
@@ -95,7 +95,7 @@ Llm* Llm::createLLM(const std::string& path, std::string model_type) {
         return llm;
     }
     llm->is_single_ = is_single;
-    std::cout << "### model name : "<< llm->model_name_ << std::endl;
+    std::cout << "### model name : "<< llm->model_name_ << ", is_single = " << is_single << std::endl;
     return llm;
 }
 
@@ -367,6 +367,10 @@ int Llm::forward(const std::vector<int>& input_ids) {
         for (int i = 0; i < layer_nums_; i++) {
             AUTOTIME;
             auto outputs = modules_[i]->onForward({hidden_states, attention_mask, position_ids, past_key_values_[i]});
+            if (outputs.size () != 2) {
+				MNN_PRINT("ERROR: outputs size is %d\n", outputs.size());
+                break;
+			}
             hidden_states = outputs[0];
             past_key_values_[i] = outputs[1];
         }
@@ -374,7 +378,9 @@ int Llm::forward(const std::vector<int>& input_ids) {
         {
             AUTOTIME;
             auto outputs = modules_[layer_nums_]->onForward({hidden_states});
-            id = outputs[0]->readMap<int>()[0];
+            if (outputs.size() > 0) {
+                id = outputs[0]->readMap<int>()[0];
+            }
         }
     }
     all_seq_len_ += seq_len;

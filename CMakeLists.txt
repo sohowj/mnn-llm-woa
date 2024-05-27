@@ -18,7 +18,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # include dir
-include_directories(${CMAKE_CURRENT_LIST_DIR}/include/)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/include/ ${CMAKE_CURRENT_LIST_DIR}/MNN/include)
 
 # libs dir
 link_directories(${CMAKE_CURRENT_LIST_DIR}/libs)

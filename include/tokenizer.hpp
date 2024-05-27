@@ -114,6 +114,9 @@ private:
     std::unordered_map<wchar_t, uint8_t> u2b_;
     std::unordered_map<std::string, int> encoder_;
     std::vector<std::string> decoder_;
+
+    void save_merge_rule(const std::string& preprocessed_filename);
+    bool load_merge_rule(const std::string& preprocessed_filename);
 };
 
 #endif // TOKENIZER_hpp

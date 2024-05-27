@@ -1,4 +1,4 @@
-//
+﻿//
 //  tokenizer.cpp
 //
 //  Created by MNN on 2023/09/25.
@@ -101,6 +101,7 @@ bool Sentencepiece::load(const std::string& filename) {
         index++;
     }
     tok_file.close();
+    printf("[Sentencepiece] load %d tokens from %s\n", index, filename.c_str());
     return true;
 }
 
@@ -328,6 +329,7 @@ bool Tiktoken::load(const std::string& filename) {
         decoder_.push_back(token);
     }
     tok_file.close();
+    printf("[Tiktoken] load %d tokens from %s\n", decoder_.size(), filename.c_str());
     return true;
 }
 
@@ -499,14 +501,24 @@ bool HuggingfaceTokenizer::load(const std::string& filename) {
         encoder_.insert({line, i});
         decoder_[i] = line;
     }
+
     // load merge_rule
-    for (int i = 0; i < merge_len; i++) {
-        std::getline(tok_file, line);
-        int d = line.find(" ");
-        bpe_ranks_.insert({{utf8_to_wstring(line.substr(0, d)),
-                            utf8_to_wstring(line.substr(d + 1))}, i});
+    // Define preprocessed merge_rule file
+    std::string preprocessed_filename = filename + ".merge_rule";
+
+    // Load or generate merge_rule
+    if (!load_merge_rule(preprocessed_filename)) {
+        // Load merge_rule from the main file
+        for (int i = 0; i < merge_len; i++) {
+            std::getline(tok_file, line);
+            int d = line.find(" ");
+            bpe_ranks_.insert({ {utf8_to_wstring(line.substr(0, d)), utf8_to_wstring(line.substr(d + 1))}, i });
+        }
+        // Save merge_rule to preprocessed file
+        save_merge_rule(preprocessed_filename);
     }
     tok_file.close();
+
     // bytes_to_unicode
      auto _insert_range = [=](int start, int end) {
         for (int c = start; c <= end; c++) {
@@ -529,6 +541,51 @@ bool HuggingfaceTokenizer::load(const std::string& filename) {
     for (auto e : b2u_) {
         u2b_.insert({e.second, e.first});
     }
+    printf("[HuggingfaceTokenizer] load %d tokens from %s\n", vocab_len, filename.c_str());
+    return true;
+}
+
+void HuggingfaceTokenizer::save_merge_rule(const std::string& preprocessed_filename) {
+    std::ofstream preprocessed_file(preprocessed_filename);
+    for (const auto& item : bpe_ranks_) {
+        uint16_t length = item.first.first.size();
+        preprocessed_file.write(reinterpret_cast<const char*>(&length), sizeof(length));
+        preprocessed_file.write(reinterpret_cast<const char*>(item.first.first.data()), length * sizeof(wchar_t));
+        length = item.first.second.size();
+        preprocessed_file.write(reinterpret_cast<const char*>(&length), sizeof(length));
+        preprocessed_file.write(reinterpret_cast<const char*>(item.first.second.data()), length * sizeof(wchar_t));
+        uint32_t rank = item.second;
+        preprocessed_file.write(reinterpret_cast<const char*>(&rank), sizeof(rank));
+    }
+    preprocessed_file.close();
+}
+
+bool HuggingfaceTokenizer::load_merge_rule(const std::string& preprocessed_filename) {
+    std::ifstream preprocessed_file(preprocessed_filename);
+    if (!preprocessed_file.good()) {
+        printf("[HuggingfaceTokenizer] No preprocessed merge rule file found, load from raw...");
+        return false;
+    }
+
+    while (!preprocessed_file.eof()) {
+        std::wstring first, second;
+        uint32_t rank;
+        uint16_t length;
+        preprocessed_file.read(reinterpret_cast<char*>(&length), sizeof(length));
+        wchar_t* buffer1 = new wchar_t[length + 1];
+        preprocessed_file.read(reinterpret_cast<char*>(buffer1), length * sizeof(wchar_t));
+        buffer1[length] = L'\0';
+        preprocessed_file.read(reinterpret_cast<char*>(&length), sizeof(length));
+        wchar_t* buffer2 = new wchar_t[length + 1];
+        preprocessed_file.read(reinterpret_cast<char*>(buffer2), length * sizeof(wchar_t));
+        buffer2[length] = L'\0';
+        preprocessed_file.read(reinterpret_cast<char*>(&rank), sizeof(rank));
+        bpe_ranks_.insert({ {std::wstring(buffer1), std::wstring(buffer2)}, (int)rank });
+        delete[] buffer1;
+        delete[] buffer2;
+	}
+
+    preprocessed_file.close();
     return true;
 }
 
