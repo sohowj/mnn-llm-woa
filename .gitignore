@@ -1,6 +1,5 @@
 # ignore dirs
 build/
-MNN/
 .vscode/
 .cached/
 .cache/
